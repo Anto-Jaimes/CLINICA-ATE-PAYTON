@@ -20,6 +20,13 @@ DEMOSTRACIÓN INTEGRAL DE LOS 4 PILARES DE LA POO:
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from formato_tablero import (
+    C_RESET, C_CYAN, C_GOLD, C_GREEN, C_RED, C_WHITE, C_GRAY, C_BLUE,
+    ANCHO_TABLERO, fila_doble, borde_sup_doble, borde_inf_doble, borde_sep_doble
+)
+
+BG_HEADER = "\033[44;1;97m"
+BG_TOTAL = "\033[42;1;30m"
 
 
 # ==============================================================================
@@ -282,19 +289,19 @@ class Paciente(Persona):
         imc_txt = f"{self._signos_vitales.get('imc', 'N/A')} ({self._signos_vitales.get('diagnostico_nutricional', 'Sin registro')})" if self._signos_vitales else "Pendiente de Triaje"
         
         lineas = [
-            "\033[1;96m╔══════════════════════════════════════════════════════════════════════════════════╗\033[0m",
-            f"\033[1;96m║\033[0m  \033[44;1;97m CLINICA DE ATE VITARTE S.A.C. \033[0m   \033[1;93mCARNET DIGITAL DE AFILIADO AL SISTEMA\033[0m      \033[1;96m║\033[0m",
-            "\033[1;96m╠══════════════════════════════════════════════════════════════════════════════════╣\033[0m",
-            f"\033[1;96m║\033[0m  \033[1;93m┌──────────────┐\033[0m   \033[1;97mAfiliado  :\033[0m \033[1;96m{self.nombre_completo:<49}\033[0m\033[1;96m║\033[0m",
-            f"\033[1;96m║\033[0m  \033[1;93m│  [ 👤 FOTO ] │\033[0m   \033[1;97mDNI       :\033[0m {self.dni:<18} \033[1;97mGrupo Sang:\033[0m \033[1;91m{self._tipo_sangre:<10}\033[0m \033[1;96m║\033[0m",
-            f"\033[1;96m║\033[0m  \033[1;93m│   PACIENTE   │\033[0m   \033[1;97mCobertura :\033[0m \033[1;92m{seguro_badge:<18}\033[0m \033[1;97mEdad      :\033[0m {self._edad} anios      \033[1;96m║\033[0m",
-            f"\033[1;96m║\033[0m  \033[1;93m│   TITULAR    │\033[0m   \033[1;97mTelefono  :\033[0m {self.telefono:<18} \033[1;97mEstado    :\033[0m \033[1;93mACTIVO         \033[0m \033[1;96m║\033[0m",
-            f"\033[1;96m║\033[0m  \033[1;93m└──────────────┘\033[0m   \033[1;97mAlergias  :\033[0m \033[90m{alergias_txt[:48]:<49}\033[0m\033[1;96m║\033[0m",
-            f"\033[1;96m║\033[0m  \033[1;97mSignos / IMC  :\033[0m   \033[1;94m{imc_txt[:64]:<64}\033[0m   \033[1;96m║\033[0m",
-            "\033[1;96m╠══════════════════════════════════════════════════════════════════════════════════╣\033[0m",
-            "\033[1;96m║\033[0m  \033[90m||| | ||||| || |||||| | ||||| ||| |||| | |||||| ||||| | ||| |||| | |||| |||||   \033[0m\033[1;96m║\033[0m",
-            "\033[1;96m║\033[0m  \033[90mCredencial digital valida para atenciones ambulatorias, urgencias y telemedicina \033[0m\033[1;96m║\033[0m",
-            "\033[1;96m╚══════════════════════════════════════════════════════════════════════════════════╝\033[0m"
+            borde_sup_doble(ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {BG_HEADER} CLINICA DE ATE VITARTE S.A.C. {C_RESET}   {C_GOLD}CARNET DIGITAL DE AFILIADO{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            borde_sep_doble(ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GOLD}┌──────────────┐{C_RESET}   {C_WHITE}Afiliado  :{C_RESET} {C_CYAN}{self.nombre_completo[:36]:<36}{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GOLD}│  [ AFILIADO ]│{C_RESET}   {C_WHITE}DNI       :{C_RESET} {self.dni:<14} {C_WHITE}Grupo Sang:{C_RESET} {C_RED}{self._tipo_sangre:<6}{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GOLD}│   PACIENTE   │{C_RESET}   {C_WHITE}Cobertura :{C_RESET} {C_GREEN}{seguro_badge:<14}{C_RESET} {C_WHITE}Edad      :{C_RESET} {self._edad} anios", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GOLD}│   TITULAR    │{C_RESET}   {C_WHITE}Telefono  :{C_RESET} {self.telefono:<14} {C_WHITE}Estado    :{C_RESET} {C_GOLD}ACTIVO{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GOLD}└──────────────┘{C_RESET}   {C_WHITE}Alergias  :{C_RESET} {C_GRAY}{alergias_txt[:36]:<36}{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_WHITE}Signos / IMC  :{C_RESET}   {C_BLUE}{imc_txt[:50]:<50}{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            borde_sep_doble(ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GRAY}||| | ||||| || |||||| | ||||| ||| |||| | |||||| ||||| | ||| |||| | ||||{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GRAY}Credencial digital valida para atenciones ambulatorias y urgencias.{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            borde_inf_doble(ANCHO_TABLERO, C_CYAN)
         ]
         return "\n".join(lineas)
 
@@ -411,35 +418,35 @@ class CitaMedica(IdentificableMixin, NotificableMixin, AuditableMixin, Descontab
         """Genera e imprime el documento de Receta Médica Oficial en consola."""
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         lineas = [
-            "\033[1;92m╔════════════════════════════════════════════════════════════════════════════════════════╗\033[0m",
-            f"\033[1;92m║\033[0m  \033[42;1;30m CLINICA DE ATE VITARTE S.A.C. \033[0m   \033[1;97mRECETA Y PRESCRIPCIÓN MÉDICA OFICIAL\033[0m       \033[1;92m║\033[0m",
-            f"\033[1;92m║\033[0m  \033[90mRUC: 20548963211 • Av. Nicolás Ayllón 5840, Ate • Tel: (01) 351-8900\033[0m                \033[1;92m║\033[0m",
-            "\033[1;92m╠════════════════════════════════════════════════════════════════════════════════════════╣\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;93mCÓDIGO CITA :\033[0m {self.codigo:<20} \033[1;93mFECHA EMISIÓN :\033[0m {fecha_actual:<24} \033[1;92m║\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;97mPACIENTE    :\033[0m {self.paciente.nombre_completo:<42} \033[1;97mDNI:\033[0m {self.paciente.dni:<11} \033[1;92m║\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;97mMÉDICO      :\033[0m Dr(a). {self.medico.nombre_completo:<37} \033[1;97mCMP:\033[0m {self.medico.colegiatura:<11} \033[1;92m║\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;97mESPECIALIDAD:\033[0m {self.medico.especialidad:<42} \033[1;97mSEGURO:\033[0m {self.paciente.tipo_seguro:<8} \033[1;92m║\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;97mDIAGNÓSTICO :\033[0m {self.motivo:<68} \033[1;92m║\033[0m",
-            "\033[1;92m╠════════════════════════════════════════════════════════════════════════════════════════╣\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;93mFARMACOTERAPIA PRESCRITA:\033[0m                                                             \033[1;92m║\033[0m"
+            borde_sup_doble(ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {BG_TOTAL} CLINICA DE ATE VITARTE S.A.C. {C_RESET}   {C_WHITE}RECETA MÉDICA OFICIAL{C_RESET}", ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_GRAY}RUC: 20548963211 • Av. Nicolás Ayllón 5840, Ate • Tel: (01) 351-8900{C_RESET}", ANCHO_TABLERO, C_GREEN),
+            borde_sep_doble(ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_GOLD}CÓDIGO CITA :{C_RESET} {self.codigo:<18} {C_GOLD}FECHA EMISIÓN :{C_RESET} {fecha_actual}", ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_WHITE}PACIENTE    :{C_RESET} {self.paciente.nombre_completo[:30]:<30} {C_WHITE}DNI:{C_RESET} {self.paciente.dni}", ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_WHITE}MÉDICO      :{C_RESET} Dr(a). {self.medico.nombre_completo[:26]:<26} {C_WHITE}CMP:{C_RESET} {self.medico.colegiatura}", ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_WHITE}ESPECIALIDAD:{C_RESET} {self.medico.especialidad[:30]:<30} {C_WHITE}SEGURO:{C_RESET} {self.paciente.tipo_seguro}", ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_WHITE}DIAGNÓSTICO :{C_RESET} {self.motivo[:52]}", ANCHO_TABLERO, C_GREEN),
+            borde_sep_doble(ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_GOLD}FARMACOTERAPIA PRESCRITA:{C_RESET}", ANCHO_TABLERO, C_GREEN)
         ]
 
         if self._receta_prescrita:
             for i, med in enumerate(self._receta_prescrita, 1):
-                farma = f"  {i}. {med['medicamento']} ({med['dosis']}) - Tomar {med['frecuencia']} por {med['duracion']}."
-                lineas.append(f"\033[1;92m║\033[0m  \033[1;97m{farma:<84}\033[0m\033[1;92m║\033[0m")
+                farma = f"  {i}. {med['medicamento']} ({med['dosis']}) - {med['frecuencia']} por {med['duracion']}."
+                lineas.append(fila_doble(f"  {C_WHITE}{farma[:64]}{C_RESET}", ANCHO_TABLERO, C_GREEN))
         else:
-            lineas.append(f"\033[1;92m║\033[0m  \033[90m  1. Paracetamol 500mg - Tomar 1 tableta cada 8 horas si hay dolor o fiebre (3 días).\033[0m \033[1;92m║\033[0m")
-            lineas.append(f"\033[1;92m║\033[0m  \033[90m  2. Hidratación oral continua (abundante líquido tibio).\033[0m                             \033[1;92m║\033[0m")
+            lineas.append(fila_doble(f"  {C_GRAY}  1. Paracetamol 500mg - Tomar 1 tableta cada 8h si dolor (3 días).{C_RESET}", ANCHO_TABLERO, C_GREEN))
+            lineas.append(fila_doble(f"  {C_GRAY}  2. Hidratación oral continua (abundante líquido tibio).{C_RESET}", ANCHO_TABLERO, C_GREEN))
 
-        ind_texto = self._indicaciones_medicas if self._indicaciones_medicas else "Reposo relativo por 48 horas. Control de signos y reevaluación si persisten síntomas."
+        ind_texto = self._indicaciones_medicas if self._indicaciones_medicas else "Reposo relativo por 48 horas. Control de signos si persisten síntomas."
         lineas.extend([
-            "\033[1;92m╠════════════════════════════════════════════════════════════════════════════════════════╣\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;93mINDICACIONES Y CUIDADOS GENERALES:\033[0m                                                    \033[1;92m║\033[0m",
-            f"\033[1;92m║\033[0m  \033[1;97m  {ind_texto[:82]:<82}\033[0m\033[1;92m║\033[0m",
-            "\033[1;92m╠════════════════════════════════════════════════════════════════════════════════════════╣\033[0m",
-            f"\033[1;92m║\033[0m  \033[90mFIRMA Y SELLO DIGITAL CMP: __________________________   SELLO DE DISPENSACIÓN FARMACIA\033[0m\033[1;92m║\033[0m",
-            "\033[1;92m╚════════════════════════════════════════════════════════════════════════════════════════╝\033[0m"
+            borde_sep_doble(ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_GOLD}INDICACIONES Y CUIDADOS GENERALES:{C_RESET}", ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"    {C_WHITE}{ind_texto[:64]}{C_RESET}", ANCHO_TABLERO, C_GREEN),
+            borde_sep_doble(ANCHO_TABLERO, C_GREEN),
+            fila_doble(f"  {C_GRAY}FIRMA CMP: _____________________    SELLO FARMACIA DISPENSACIÓN{C_RESET}", ANCHO_TABLERO, C_GREEN),
+            borde_inf_doble(ANCHO_TABLERO, C_GREEN)
         ])
         return "\n".join(lineas)
 

@@ -10,6 +10,7 @@ LÍDER DE PROYECTO: JULIBETH ANTONELA JAIMES DAZA
 
 import sys
 import os
+import textwrap
 
 # Configuración universal para UTF-8 y soporte ANSI en terminales Windows
 if sys.version_info[0] >= 3:
@@ -26,27 +27,18 @@ if sys.version_info[0] >= 3:
 
 os.system("")
 
-# Paleta cromática ANSI multicolor de alto impacto
-C_RESET = "\033[0m"
-C_BOLD = "\033[1m"
-C_DIM = "\033[2m"
-
-C_CYAN = "\033[1;96m"
-C_GOLD = "\033[1;93m"
-C_GREEN = "\033[1;92m"
-C_MAGENTA = "\033[1;95m"
-C_BLUE = "\033[1;94m"
-C_RED = "\033[1;91m"
-C_WHITE = "\033[1;97m"
-C_GRAY = "\033[90m"
-C_ORANGE = "\033[38;5;208m"
+from formato_tablero import (
+    C_RESET, C_BOLD, C_DIM, C_CYAN, C_GOLD, C_GREEN, C_MAGENTA, C_BLUE,
+    C_RED, C_WHITE, C_GRAY, ANCHO_TABLERO, ancho_visible,
+    fila_doble, fila_simple, borde_sup_doble, borde_inf_doble, borde_sep_doble,
+    borde_sup_simple, borde_inf_simple, borde_sep_simple
+)
+from gestor import GestorClinico
 
 BG_HEADER = "\033[44;1;97m"
 BG_ALERT = "\033[41;1;97m"
 BG_SUCCESS = "\033[42;1;30m"
 BG_ACTIVE = "\033[43;1;30m"
-
-from gestor import GestorClinico
 
 
 def limpiar_pantalla():
@@ -56,19 +48,17 @@ def limpiar_pantalla():
 
 def pausar():
     """Pausa interactiva con indicador estético."""
-    print(f"\n{C_GRAY}────────────────────────────────────────────────────────────────────────────────────────{C_RESET}")
+    print(f"\n{C_GRAY}  {'─' * (ANCHO_TABLERO + 2)}{C_RESET}")
     input(f"  {C_GOLD}➤{C_RESET} {C_WHITE}Presione ENTER para continuar...{C_RESET}")
 
 
 def imprimir_banner_institucional():
     """Imprime el encabezado oficial de la Clínica de Ate Vitarte S.A.C."""
-    print(f"""
-{C_CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}
-{C_CYAN}║{C_RESET}  {BG_HEADER}      CLÍNICA DE ATE VITARTE S.A.C.      {C_RESET}   {C_GOLD}[ SISTEMA INTEGRAL ASISTENCIAL Y FINANCIERO ]{C_RESET}        {C_CYAN}║{C_RESET}
-{C_CYAN}║{C_RESET}  {C_WHITE}Gestión Hospitalaria por Fases Secuenciales • Admisión, Triaje, Consultorio, Facturación & BI{C_RESET}       {C_CYAN}║{C_RESET}
-{C_CYAN}║{C_RESET}  {C_MAGENTA}Sede Ate Vitarte{C_RESET}  •  {C_GOLD}Arquitectura Clean Code en Python{C_RESET}  •  {C_GREEN}Líder: Julibeth Antonela Jaimes Daza{C_RESET}       {C_CYAN}║{C_RESET}
-{C_CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}
-""")
+    print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_CYAN)}")
+    print(fila_doble(f"  {BG_HEADER}      CLÍNICA DE ATE VITARTE S.A.C.      {C_RESET}   {C_GOLD}[ SISTEMA ASISTENCIAL ]{C_RESET}", ANCHO_TABLERO, C_CYAN))
+    print(fila_doble(f"  {C_WHITE}Gestión Hospitalaria por Fases Secuenciales • Admisión a SUNAT & BI{C_RESET}", ANCHO_TABLERO, C_CYAN))
+    print(fila_doble(f"  {C_MAGENTA}Sede Ate Vitarte{C_RESET} • {C_GOLD}Arquitectura POO Limpia{C_RESET} • {C_GREEN}Líder: Julibeth Antonela Jaimes{C_RESET}", ANCHO_TABLERO, C_CYAN))
+    print(f"{borde_inf_doble(ANCHO_TABLERO, C_CYAN)}\n")
 
 
 def imprimir_barra_progreso_flujo(gestor):
@@ -78,28 +68,37 @@ def imprimir_barra_progreso_flujo(gestor):
     barras_vacias = 20 - barras_llenas
     barra_grafica = f"{C_GREEN}{'█' * barras_llenas}{C_GRAY}{'░' * barras_vacias}{C_RESET}"
     print(f"  {C_WHITE}PROGRESO DEL CICLO CLÍNICO:{C_RESET} [{barra_grafica}] {C_GOLD}{pct}% COMPLETADO{C_RESET}")
-    print(f"  {C_GRAY}─────────────────────────────────────────────────────────────────────────────────────────────{C_RESET}")
+    print(f"  {C_GRAY}{'─' * (ANCHO_TABLERO + 2)}{C_RESET}")
 
 
 def mostrar_pantalla_bloqueo(numero_fase: int, razon: str, sugerencia: str):
     """Pantalla de alta seguridad cuando el usuario intenta ingresar a una fase no desbloqueada."""
     limpiar_pantalla()
     imprimir_banner_institucional()
-    print(f"""
-  {C_RED}╔══════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}
-  {C_RED}║{C_RESET}  {BG_ALERT}    ⛔ PROTOCOLO CLÍNICO: FASE ASISTENCIAL BLOQUEADA TEMPORALMENTE    {C_RESET}            {C_RED}║{C_RESET}
-  {C_RED}╠══════════════════════════════════════════════════════════════════════════════════════════╣{C_RESET}
-  {C_RED}║{C_RESET}                                                                                          {C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}   {C_WHITE}No es posible acceder a la {C_GOLD}FASE {numero_fase}{C_WHITE} del flujo asistencial.{C_RESET}                             {C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}                                                                                          {C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}   {C_GOLD}MOTIVO CLÍNICO:{C_RESET}                                                                        {C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}   {C_RED}• {razon:<83}{C_RESET}{C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}                                                                                          {C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}   {C_CYAN}ACCIÓN REQUERIDA PARA DESBLOQUEAR:{C_RESET}                                                     {C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}   {C_GREEN}➤ {sugerencia:<83}{C_RESET}{C_RED}║{C_RESET}
-  {C_RED}║{C_RESET}                                                                                          {C_RED}║{C_RESET}
-  {C_RED}╚══════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}
-""")
+    
+    print(borde_sup_doble(ANCHO_TABLERO, C_RED))
+    alerta_txt = f"{BG_ALERT}    [!] PROTOCOLO CLÍNICO: FASE ASISTENCIAL BLOQUEADA TEMPORALMENTE    {C_RESET}"
+    print(fila_doble(f"  {alerta_txt}", ANCHO_TABLERO, C_RED))
+    print(borde_sep_doble(ANCHO_TABLERO, C_RED))
+    print(fila_doble("", ANCHO_TABLERO, C_RED))
+    
+    txt_fase = f"{C_WHITE}No es posible acceder a la {C_GOLD}FASE {numero_fase}{C_WHITE} del flujo asistencial.{C_RESET}"
+    print(fila_doble(f"   {txt_fase}", ANCHO_TABLERO, C_RED))
+    print(fila_doble("", ANCHO_TABLERO, C_RED))
+    
+    print(fila_doble(f"   {C_GOLD}MOTIVO CLÍNICO:{C_RESET}", ANCHO_TABLERO, C_RED))
+    r_lines = textwrap.wrap(razon, width=ANCHO_TABLERO - 8) or [razon]
+    for rl in r_lines:
+        print(fila_doble(f"   {C_RED}• {rl}{C_RESET}", ANCHO_TABLERO, C_RED))
+    print(fila_doble("", ANCHO_TABLERO, C_RED))
+    
+    print(fila_doble(f"   {C_CYAN}ACCIÓN REQUERIDA PARA DESBLOQUEAR:{C_RESET}", ANCHO_TABLERO, C_RED))
+    s_lines = textwrap.wrap(sugerencia, width=ANCHO_TABLERO - 8) or [sugerencia]
+    for sl in s_lines:
+        print(fila_doble(f"   {C_GREEN}► {sl}{C_RESET}", ANCHO_TABLERO, C_RED))
+    print(fila_doble("", ANCHO_TABLERO, C_RED))
+    print(borde_inf_doble(ANCHO_TABLERO, C_RED))
+    print("")
 
 
 def imprimir_menu_fases(gestor):
@@ -113,48 +112,58 @@ def imprimir_menu_fases(gestor):
     b5 = gestor.obtener_estado_visual_fase(5)
     b6 = gestor.obtener_estado_visual_fase(6)
 
-    print(f"""
-  {C_GOLD}┌───────────────────────── FLUJO ASISTENCIAL POR FASES CLÍNICAS ──────────────────────────┐{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_MAGENTA}FASE 1: ADMISIÓN Y AFILIACIÓN{C_RESET}                                            {b1}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 1 ]{C_RESET} {C_WHITE}Afiliación de Paciente al Padrón{C_RESET} {C_GRAY}(Alta, DNI, Seguro y Carnet Digital){C_RESET}      {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_CYAN}FASE 2: TRIAJE HOSPITALARIO Y EVALUACIÓN{C_RESET}                                   {b2}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 2 ]{C_RESET} {C_WHITE}Toma de Signos Vitales y Cálculo de IMC{C_RESET} {C_GRAY}(Presión, SpO2, Pulso, Diagnóstico){C_RESET} {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_BLUE}FASE 3: AGENDAMIENTO ASISTENCIAL{C_RESET}                                           {b3}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 3 ]{C_RESET} {C_WHITE}Programación de Cita Polimórfica{C_RESET} {C_GRAY}(General, Especialidad, Urgencia, etc.){C_RESET}    {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_GOLD}FASE 4: ACTO MÉDICO Y CONSULTORIO{C_RESET}                                         {b4}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 4 ]{C_RESET} {C_WHITE}Atención Médica y Receta Oficial{C_RESET} {C_GRAY}(Diagnóstico CIE-10 y Fármacos prescritos){C_RESET} {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_GREEN}FASE 5: CAJA Y TESORERÍA FISCAL{C_RESET}                                           {b5}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 5 ]{C_RESET} {C_WHITE}Facturación Electrónica SUNAT (18%){C_RESET} {C_GRAY}(Boleta/Factura, Código QR y Pago){C_RESET}       {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_ORANGE}FASE 6: AUDITORÍA Y CIERRE GERENCIAL{C_RESET}                                      {b6}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 6 ]{C_RESET} {C_WHITE}Tablero BI Gerencial y Archivo en Disco{C_RESET} {C_GRAY}(Gráficos de barras y Auditoría){C_RESET}   {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}                                                                                          {C_GOLD}│{C_RESET}
-  {C_GOLD}├──────────────────────────────────────────────────────────────────────────────────────────┤{C_RESET}
-  {C_GOLD}│{C_RESET}   {C_WHITE}CONSULTAS Y GESTIÓN AUXILIAR:{C_RESET}                                                           {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_CYAN}[ 7 ]{C_RESET} {C_WHITE}Directorio de Médicos Especialistas y Horarios{C_RESET}                               {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_CYAN}[ 8 ]{C_RESET} {C_WHITE}Expediente Clínico Digital por DNI{C_RESET}                                           {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_GOLD}[ 9 ]{C_RESET} {C_WHITE}Reiniciar Flujo Asistencial a Cero{C_RESET} {C_GRAY}(Para probar bloqueo paso a paso){C_RESET}         {C_GOLD}│{C_RESET}
-  {C_GOLD}│{C_RESET}     {C_RED}[ 0 ]{C_RESET} {C_WHITE}Cerrar Sesión del Sistema{C_RESET}                                                     {C_GOLD}│{C_RESET}
-  {C_GOLD}└──────────────────────────────────────────────────────────────────────────────────────────┘{C_RESET}
-""")
+    def fila_fase(titulo, badge):
+        espacios = max(2, ANCHO_TABLERO - ancho_visible(titulo) - ancho_visible(badge) - 3)
+        return fila_simple(f"  {titulo}{' ' * espacios}{badge} ", ANCHO_TABLERO, C_GOLD)
+
+    print(borde_sup_simple(ANCHO_TABLERO, C_GOLD, "FLUJO ASISTENCIAL POR FASES CLÍNICAS"))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+    
+    print(fila_fase(f"{C_MAGENTA}FASE 1: ADMISIÓN Y AFILIACIÓN{C_RESET}", b1))
+    print(fila_simple(f"    {C_GOLD}[ 1 ]{C_RESET} {C_WHITE}Afiliación de Paciente al Padrón{C_RESET} {C_GRAY}(Alta, Carnet Digital){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+
+    print(fila_fase(f"{C_CYAN}FASE 2: TRIAJE HOSPITALARIO Y EVALUACIÓN{C_RESET}", b2))
+    print(fila_simple(f"    {C_GOLD}[ 2 ]{C_RESET} {C_WHITE}Toma de Signos Vitales y Cálculo IMC{C_RESET} {C_GRAY}(SpO2, Pulso, Diagnóstico){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+
+    print(fila_fase(f"{C_BLUE}FASE 3: AGENDAMIENTO ASISTENCIAL{C_RESET}", b3))
+    print(fila_simple(f"    {C_GOLD}[ 3 ]{C_RESET} {C_WHITE}Programación de Cita Polimórfica{C_RESET} {C_GRAY}(General, Especialidad, etc.){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+
+    print(fila_fase(f"{C_GOLD}FASE 4: ACTO MÉDICO Y CONSULTORIO{C_RESET}", b4))
+    print(fila_simple(f"    {C_GOLD}[ 4 ]{C_RESET} {C_WHITE}Atención Médica y Receta Oficial{C_RESET} {C_GRAY}(Diagnóstico CIE-10 y Fármacos){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+
+    print(fila_fase(f"{C_GREEN}FASE 5: CAJA Y TESORERÍA FISCAL{C_RESET}", b5))
+    print(fila_simple(f"    {C_GOLD}[ 5 ]{C_RESET} {C_WHITE}Facturación Electrónica SUNAT (18%){C_RESET} {C_GRAY}(Comprobante, QR y Pago){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+
+    print(fila_fase(f"{C_CYAN}FASE 6: AUDITORÍA Y CIERRE GERENCIAL{C_RESET}", b6))
+    print(fila_simple(f"    {C_GOLD}[ 6 ]{C_RESET} {C_WHITE}Tablero BI Gerencial y Archivo en Disco{C_RESET} {C_GRAY}(Gráficos y Auditoría){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple("", ANCHO_TABLERO, C_GOLD))
+
+    print(borde_sep_simple(ANCHO_TABLERO, C_GOLD))
+    print(fila_simple(f"  {C_WHITE}CONSULTAS Y GESTIÓN AUXILIAR:{C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple(f"    {C_CYAN}[ 7 ]{C_RESET} {C_WHITE}Directorio de Médicos Especialistas y Horarios{C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple(f"    {C_CYAN}[ 8 ]{C_RESET} {C_WHITE}Expediente Clínico Digital por DNI{C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple(f"    {C_GOLD}[ 9 ]{C_RESET} {C_WHITE}Reiniciar Flujo Asistencial a Cero{C_RESET} {C_GRAY}(Probar bloqueo paso a paso){C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple(f"    {C_RED}[ 0 ]{C_RESET} {C_WHITE}Cerrar Sesión del Sistema{C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(borde_inf_simple(ANCHO_TABLERO, C_GOLD))
+    print("")
 
 
 def menu_directorio_medicos(gestor):
     """Despliega el directorio médico oficial de la sede."""
-    print(f"\n{C_CYAN}╔════════════════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-    print(f"{C_CYAN}║{C_RESET}                       {C_WHITE}DIRECTORIO DE MÉDICOS ESPECIALISTAS Y CONSULTORIOS{C_RESET}                           {C_CYAN}║{C_RESET}")
-    print(f"{C_CYAN}╠══════════╦════════════════════════╦════════════════════╦══════════════╦═════════════════╦══════════════╣{C_RESET}")
-    print(f"{C_CYAN}║{C_RESET} {C_GOLD}COLEG.{C_RESET}   {C_CYAN}║{C_RESET} {C_GOLD}MÉDICO ASIGNADO{C_RESET}        {C_CYAN}║{C_RESET} {C_GOLD}ESPECIALIDAD{C_RESET}       {C_CYAN}║{C_RESET} {C_GOLD}TARIFA BASE{C_RESET}    {C_CYAN}║{C_RESET} {C_GOLD}HORARIO TURNO{C_RESET}   {C_CYAN}║{C_RESET} {C_GOLD}CONSULTORIO{C_RESET}    {C_CYAN}║{C_RESET}")
-    print(f"{C_CYAN}╠══════════╬════════════════════════╬════════════════════╬══════════════╬═════════════════╬══════════════╣{C_RESET}")
+    print(f"\n  {C_CYAN}╔══════════╦══════════════════════╦══════════════════╦═══════════╦═════════════╗{C_RESET}")
+    print(f"  {C_CYAN}║{C_RESET}                    {C_WHITE}DIRECTORIO DE MÉDICOS ESPECIALISTAS Y HORARIOS{C_RESET}                 {C_CYAN}║{C_RESET}")
+    print(f"  {C_CYAN}╠══════════╬══════════════════════╬══════════════════╬═══════════╬═════════════╣{C_RESET}")
+    print(f"  {C_CYAN}║{C_RESET} {C_GOLD}COLEG.{C_RESET}   {C_CYAN}║{C_RESET} {C_GOLD}MÉDICO ASIGNADO{C_RESET}        {C_CYAN}║{C_RESET} {C_GOLD}ESPECIALIDAD{C_RESET}       {C_CYAN}║{C_RESET} {C_GOLD}TARIFA BASE{C_RESET} {C_CYAN}║{C_RESET} {C_GOLD}HORARIO TURNO{C_RESET} {C_CYAN}║{C_RESET}")
+    print(f"  {C_CYAN}╠══════════╬══════════════════════╬══════════════════╬═══════════╬═════════════╣{C_RESET}")
     for m in gestor.medicos:
-        horario = f"{m.horario_atencion[0]} a {m.horario_atencion[1]}"
-        print(f"{C_CYAN}║{C_RESET} {m.colegiatura:<8} {C_CYAN}║{C_RESET} Dr(a). {m.nombre_completo:<16} {C_CYAN}║{C_RESET} {m.especialidad:<18} {C_CYAN}║{C_RESET} {C_GREEN}S/ {m.tarifa_base:8.2f}{C_RESET} {C_CYAN}║{C_RESET} {horario:<15} {C_CYAN}║{C_RESET} {m.consultorio:<12} {C_CYAN}║{C_RESET}")
-    print(f"{C_CYAN}╚══════════╩════════════════════════╩════════════════════╩══════════════╩═════════════════╩══════════════╝{C_RESET}")
+        horario = f"{m.horario_atencion[0]}-{m.horario_atencion[1]}"
+        print(f"  {C_CYAN}║{C_RESET} {m.colegiatura:<8} {C_CYAN}║{C_RESET} Dr(a). {m.nombre_completo[:14]:<14} {C_CYAN}║{C_RESET} {m.especialidad[:16]:<16} {C_CYAN}║{C_RESET} {C_GREEN}S/{m.tarifa_base:7.2f}{C_RESET} {C_CYAN}║{C_RESET} {horario:<11} {C_CYAN}║{C_RESET}")
+    print(f"  {C_CYAN}╚══════════╩══════════════════════╩══════════════════╩═══════════╩═════════════╝{C_RESET}")
 
 
 def ejecutar_consola():

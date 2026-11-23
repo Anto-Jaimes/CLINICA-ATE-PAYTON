@@ -24,36 +24,25 @@ from modelos import (
     CitaTelemedicina, CitaDomiciliaria, CitaLaboratorio
 )
 from facturacion import formatear_comprobante_consola, FacturadorClinico, calcular_liquidacion
+from formato_tablero import (
+    C_RESET, C_BOLD, C_DIM, C_CYAN, C_GOLD, C_GREEN, C_MAGENTA, C_BLUE,
+    C_RED, C_WHITE, C_GRAY, ANCHO_TABLERO, fila_doble, borde_sup_doble,
+    borde_inf_doble, borde_sep_doble
+)
 
-# ==============================================================================
-# PALETA CROMÁTICA ANSI VIBRANTE Y MULTICOLOR
-# ==============================================================================
-C_RESET = "\033[0m"
-C_BOLD = "\033[1m"
-C_DIM = "\033[2m"
-
-# Colores de texto vivos
-C_CYAN = "\033[1;96m"       # Cian vibrante
-C_GOLD = "\033[1;93m"       # Dorado / Amarillo sol
-C_GREEN = "\033[1;92m"      # Verde neón
-C_MAGENTA = "\033[1;95m"    # Fucsia / Magenta
-C_BLUE = "\033[1;94m"       # Azul eléctrico
-C_RED = "\033[1;91m"        # Rojo coral
-C_WHITE = "\033[1;97m"      # Blanco puro
-C_GRAY = "\033[90m"         # Gris tenue
-C_ORANGE = "\033[38;5;208m" # Naranja brillante
-C_CORAL = "\033[38;5;209m"  # Coral vibrante
+C_ORANGE = "\033[38;5;208m"
+C_CORAL = "\033[38;5;209m"
 
 # Fondos cromáticos para badges y estados
-BG_HEADER = "\033[44;1;97m"     # Fondo Azul
-BG_FASE1 = "\033[45;1;97m"      # Fondo Magenta
-BG_FASE2 = "\033[46;1;30m"      # Fondo Cian
-BG_FASE3 = "\033[44;1;97m"      # Fondo Azul Intenso
-BG_FASE4 = "\033[43;1;30m"      # Fondo Dorado
-BG_FASE5 = "\033[42;1;30m"      # Fondo Verde
-BG_FASE6 = "\033[41;1;97m"      # Fondo Rojo/Coral
-BG_LOCKED = "\033[48;5;236;90m" # Fondo Gris Oscuro
-BG_ACTIVE = "\033[43;1;30m"     # Fondo Ámbar activo
+BG_HEADER = "\033[44;1;97m"
+BG_FASE1 = "\033[45;1;97m"
+BG_FASE2 = "\033[46;1;30m"
+BG_FASE3 = "\033[44;1;97m"
+BG_FASE4 = "\033[43;1;30m"
+BG_FASE5 = "\033[42;1;30m"
+BG_FASE6 = "\033[41;1;97m"
+BG_LOCKED = "\033[48;5;236;90m"
+BG_ACTIVE = "\033[43;1;30m"
 
 
 class GestorClinico:
@@ -223,20 +212,20 @@ class GestorClinico:
         desbloqueada, _, _ = self.verificar_fase(numero_fase)
         if desbloqueada:
             if numero_fase == 1 and len(self.pacientes) > 0:
-                return f"{C_GREEN}[ ✔ COMPLETADA ]{C_RESET}"
+                return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 2 and any(p.signos_vitales for p in self.pacientes):
-                return f"{C_GREEN}[ ✔ COMPLETADA ]{C_RESET}"
+                return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 3 and any(c.estado in ("PROGRAMADA", "ATENDIDA") for c in self.citas):
-                return f"{C_GREEN}[ ✔ COMPLETADA ]{C_RESET}"
+                return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 4 and any(c.estado == "ATENDIDA" for c in self.citas):
-                return f"{C_GREEN}[ ✔ COMPLETADA ]{C_RESET}"
+                return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 5 and len(self.citas_facturadas) > 0:
-                return f"{C_GREEN}[ ✔ COMPLETADA ]{C_RESET}"
+                return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 6 and len(self.citas_facturadas) > 0:
-                return f"{C_CYAN}[ ✦ DISPONIBLE ]{C_RESET}"
-            return f"{C_GOLD}[ ⏳ ACTIVA ]{C_RESET}"
+                return f"{C_CYAN}[ DISPONIBLE ]{C_RESET}"
+            return f"{C_GOLD}[ EN CURSO   ]{C_RESET}"
         else:
-            return f"{C_RED}[ 🔒 BLOQUEADA ]{C_RESET}"
+            return f"{C_RED}[ BLOQUEADA  ]{C_RESET}"
 
     def calcular_porcentaje_flujo(self) -> int:
         """Calcula el porcentaje de avance general del workflow asistencial."""
@@ -286,9 +275,9 @@ class GestorClinico:
     # FASE 1: ADMISIÓN Y AFILIACIÓN
     # --------------------------------------------------------------------------
     def ejecutar_fase1_admision(self):
-        print(f"\n{C_MAGENTA}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_MAGENTA}║{C_RESET}  {BG_FASE1} FASE 1 : ADMISIÓN HOSPITALARIA Y AFILIACIÓN DEL PACIENTE {C_RESET}                           {C_MAGENTA}║{C_RESET}")
-        print(f"{C_MAGENTA}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_MAGENTA)}")
+        print(fila_doble(f"  {BG_FASE1} FASE 1 : ADMISIÓN HOSPITALARIA Y AFILIACIÓN DEL PACIENTE {C_RESET}", ANCHO_TABLERO, C_MAGENTA))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_MAGENTA)}\n")
 
         dni = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Ingrese DNI (8 dígitos):{C_RESET} ").strip()
         if not (dni.isdigit() and len(dni) == 8):
@@ -332,9 +321,9 @@ class GestorClinico:
     # FASE 2: TRIAJE Y SIGNOS VITALES (IMC)
     # --------------------------------------------------------------------------
     def ejecutar_fase2_triaje(self):
-        print(f"\n{C_CYAN}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  {BG_FASE2} FASE 2 : TRIAJE HOSPITALARIO, SIGNOS VITALES Y EVALUACIÓN NUTRICIONAL {C_RESET}               {C_CYAN}║{C_RESET}")
-        print(f"{C_CYAN}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_CYAN)}")
+        print(fila_doble(f"  {BG_FASE2} FASE 2 : TRIAJE HOSPITALARIO, SIGNOS VITALES E IMC {C_RESET}", ANCHO_TABLERO, C_CYAN))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_CYAN)}\n")
 
         print(f"  {C_WHITE}Pacientes registrados en el padrón:{C_RESET}")
         for i, p in enumerate(self.pacientes, 1):
@@ -389,9 +378,9 @@ class GestorClinico:
     # FASE 3: ASIGNACIÓN Y AGENDAMIENTO DE CITA
     # --------------------------------------------------------------------------
     def ejecutar_fase3_agendamiento(self):
-        print(f"\n{C_BLUE}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_BLUE}║{C_RESET}  {BG_FASE3} FASE 3 : AGENDAMIENTO Y ASIGNACIÓN DE MODALIDAD POLIMÓRFICA {C_RESET}                        {C_BLUE}║{C_RESET}")
-        print(f"{C_BLUE}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_BLUE)}")
+        print(fila_doble(f"  {BG_FASE3} FASE 3 : AGENDAMIENTO Y ASIGNACIÓN POLIMÓRFICA {C_RESET}", ANCHO_TABLERO, C_BLUE))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_BLUE)}\n")
 
         pacientes_aptos = [p for p in self.pacientes if p.signos_vitales]
         print(f"  {C_WHITE}Pacientes evaluados en triaje aptos para cita médica:{C_RESET}")
@@ -477,9 +466,9 @@ class GestorClinico:
     # FASE 4: CONSULTORIO MÉDICO Y ACTO MÉDICO
     # --------------------------------------------------------------------------
     def ejecutar_fase4_acto_medico(self):
-        print(f"\n{C_GOLD}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_GOLD}║{C_RESET}  {BG_FASE4} FASE 4 : CONSULTORIO MÉDICO, ACTO CLÍNICO Y RECETA OFICIAL {C_RESET}                         {C_GOLD}║{C_RESET}")
-        print(f"{C_GOLD}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_GOLD)}")
+        print(fila_doble(f"  {BG_FASE4} FASE 4 : CONSULTORIO MÉDICO, ACTO CLÍNICO Y RECETA {C_RESET}", ANCHO_TABLERO, C_GOLD))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_GOLD)}\n")
 
         citas_pendientes = [c for c in self.citas if c.estado in ("PROGRAMADA", "EN_ESPERA")]
         print(f"  {C_WHITE}Citas agendadas en espera de atención médica:{C_RESET}")
@@ -531,9 +520,9 @@ class GestorClinico:
     # FASE 5: CAJA Y FACTURACIÓN ELECTRÓNICA SUNAT
     # --------------------------------------------------------------------------
     def ejecutar_fase5_facturacion(self):
-        print(f"\n{C_GREEN}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_GREEN}║{C_RESET}  {BG_FASE5} FASE 5 : CAJA, FACTURACIÓN ELECTRÓNICA SUNAT Y LIQUIDACIÓN {C_RESET}                         {C_GREEN}║{C_RESET}")
-        print(f"{C_GREEN}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_GREEN)}")
+        print(fila_doble(f"  {BG_FASE5} FASE 5 : CAJA, FACTURACIÓN ELECTRÓNICA SUNAT (18%) {C_RESET}", ANCHO_TABLERO, C_GREEN))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_GREEN)}\n")
 
         citas_por_facturar = [c for c in self.citas if c.estado == "ATENDIDA" and c.codigo not in self.citas_facturadas]
         print(f"  {C_WHITE}Citas con atención médica culminada pendientes de liquidación en caja:{C_RESET}")
@@ -606,9 +595,9 @@ class GestorClinico:
     # FASE 6: AUDITORÍA, REPORTE GERENCIAL Y CIERRE DE EXPEDIENTE
     # --------------------------------------------------------------------------
     def ejecutar_fase6_auditoria_cierre(self):
-        print(f"\n{C_CORAL}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_CORAL}║{C_RESET}  {BG_FASE6} FASE 6 : AUDITORÍA INTEGRAL, TABLERO BI Y CIERRE GERENCIAL {C_RESET}                          {C_CORAL}║{C_RESET}")
-        print(f"{C_CORAL}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_CYAN)}")
+        print(fila_doble(f"  {BG_FASE6} FASE 6 : AUDITORÍA INTEGRAL, TABLERO BI Y CIERRE {C_RESET}", ANCHO_TABLERO, C_CYAN))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_CYAN)}\n")
 
         total_recaudado = sum(calcular_liquidacion(c.calcular_tarifa_final())[2] for c in self.citas if c.codigo in self.citas_facturadas)
         total_pacientes = len(self.pacientes)

@@ -18,18 +18,15 @@ DEMOSTRACIÓN TÉCNICA DE SOBRECARGA DE MÉTODOS EN PYTHON:
 
 from datetime import datetime
 from functools import singledispatchmethod
+from formato_tablero import (
+    C_RESET, C_CYAN, C_GOLD, C_GREEN, C_RED, C_WHITE, C_GRAY,
+    ANCHO_TABLERO, ancho_visible, fila_doble, borde_sup_doble,
+    borde_inf_doble, borde_sep_doble
+)
 
 # Tasa tributaria oficial SUNAT en el Perú
 TASA_IGV = 0.18
 
-# Paleta cromática ANSI profesional
-C_RESET = "\033[0m"
-C_CYAN = "\033[1;96m"
-C_GOLD = "\033[1;93m"
-C_GREEN = "\033[1;92m"
-C_RED = "\033[1;91m"
-C_WHITE = "\033[1;97m"
-C_GRAY = "\033[90m"
 BG_TOTAL = "\033[42;1;30m"
 BG_HEADER = "\033[44;1;97m"
 
@@ -173,49 +170,49 @@ class FacturadorClinico:
 def formatear_comprobante_consola(cita, tipo_doc: str = "BOLETA") -> str:
     """
     Diseña una salida en consola con formato de Comprobante de Pago Electrónico Oficial SUNAT.
-    Incluye bordes de doble línea, tipografía tabular, desglose impositivo y código QR en arte ASCII.
+    Garantiza alineación milimétrica con bordes calculados dinámicamente en consola (78 cols).
     """
     subtotal, igv, total = calcular_liquidacion(cita.calcular_tarifa_final())
     fecha_emision = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     correlativo = f"B002-{abs(hash(cita.codigo)) % 9000 + 1000}" if tipo_doc == "BOLETA" else f"F002-{abs(hash(cita.codigo)) % 9000 + 1000}"
 
     lineas = [
-        f"{C_GOLD}╔════════════════════════════════════════════════════════════════════════════════════════╗{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {BG_HEADER} CLINICA DE ATE VITARTE S.A.C. {C_RESET}  {C_WHITE}RUC: 20548963211{C_RESET}  •  {C_GOLD}SEDE ATE VITARTE{C_RESET}             {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_GRAY}Av. Nicolás Ayllón 5840 - Ate Vitarte, Lima - Tel: (01) 351-8900                       {C_RESET}{C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_GOLD}COMPROBANTE ELECTRÓNICO SUNAT:{C_RESET} {C_WHITE}{tipo_doc} DE VENTA ELECTRÓNICA N° {correlativo:<14}{C_RESET}     {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}╠════════════════════════════════════════════════════════════════════════════════════════╣{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_CYAN}DATOS DEL PACIENTE Y EMISIÓN:{C_RESET}                                                          {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Fecha/Hora Emisión  : {C_WHITE}{fecha_emision:<26}{C_RESET} Estado: {C_GREEN}EMITIDO / PAGADO{C_RESET}             {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Paciente Afiliado   : {C_WHITE}{cita.paciente.nombre_completo:<42}{C_RESET} DNI: {cita.paciente.dni:<10}{C_RESET} {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Cobertura Médica    : {C_GOLD}{cita.paciente.tipo_seguro:<26}{C_RESET} Código Cita: {cita.codigo:<13}{C_RESET} {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Médico Especialista : Dr(a). {cita.medico.nombre_completo:<32}{C_RESET} CMP: {cita.medico.colegiatura:<10}{C_RESET}  {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}╠════════════════════════════════════════════════════════════════════════════════════════╣{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_CYAN}DETALLE DE LA PRESTACIÓN DE SALUD:{C_RESET}                                                     {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Tipo de Servicio    : {C_WHITE}{cita.tipo_servicio():<60}{C_RESET} {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Especificación      : {C_GRAY}{cita.obtener_detalles_servicio()[:60]:<60}{C_RESET} {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    • Motivo Clínico      : {C_GRAY}{cita.motivo[:60]:<60}{C_RESET} {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}╠════════════════════════════════════════════════════════════════════════════════════════╣{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_CYAN}LIQUIDACIÓN TRIBUTARIA (SOLES):{C_RESET}                                                        {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    1. Tarifa Base Profesional                    : S/ {cita.medico.tarifa_base:>10.2f}                         {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    2. Cobertura / Descuento Seguro ({cita.paciente.tipo_seguro:<11})   : [ APLICADO AL COPAGO ]                   {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    3. Subtotal / Base Imponible                  : {C_WHITE}S/ {subtotal:>10.2f}{C_RESET}                         {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    4. Impuesto General a las Ventas (18% IGV)    : {C_WHITE}S/ {igv:>10.2f}{C_RESET}                         {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  ──────────────────────────────────────────────────────────────────────────────────────  {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}    {BG_TOTAL} TOTAL A LIQUIDAR / IMPORTE PAGADO           : S/ {total:>10.2f} {C_RESET}                        {C_GOLD}║{C_RESET}",
-        f"{C_GOLD}╠════════════════════════════════════════════════════════════════════════════════════════╣{C_RESET}"
+        borde_sup_doble(ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {BG_HEADER} CLINICA DE ATE VITARTE S.A.C. {C_RESET}  {C_WHITE}RUC: 20548963211{C_RESET} • {C_GOLD}SEDE ATE{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_GRAY}Av. Nicolás Ayllón 5840 - Ate Vitarte, Lima - Tel: (01) 351-8900{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_GOLD}COMPROBANTE SUNAT:{C_RESET} {C_WHITE}{tipo_doc} ELECTRÓNICA N° {correlativo}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        borde_sep_doble(ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_CYAN}DATOS DEL PACIENTE Y EMISIÓN:{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Fecha/Hora Emisión : {C_WHITE}{fecha_emision}{C_RESET} | Estado: {C_GREEN}EMITIDO / PAGADO{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Paciente Afiliado  : {C_WHITE}{cita.paciente.nombre_completo[:34]:<34}{C_RESET} (DNI: {cita.paciente.dni})", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Cobertura / Cita   : {C_GOLD}{cita.paciente.tipo_seguro:<16}{C_RESET} | Código: {C_WHITE}{cita.codigo}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Médico Tratante    : Dr(a). {cita.medico.nombre_completo[:28]:<28} (CMP: {cita.medico.colegiatura})", ANCHO_TABLERO, C_GOLD),
+        borde_sep_doble(ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_CYAN}DETALLE DE LA PRESTACIÓN DE SALUD:{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Tipo de Servicio   : {C_WHITE}{cita.tipo_servicio()[:48]}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Especificación     : {C_GRAY}{cita.obtener_detalles_servicio()[:48]}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    • Motivo Clínico     : {C_GRAY}{cita.motivo[:48]}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        borde_sep_doble(ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_CYAN}LIQUIDACIÓN TRIBUTARIA (SOLES):{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    1. Tarifa Base Profesional        : S/ {cita.medico.tarifa_base:>8.2f}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    2. Cobertura Seguro ({cita.paciente.tipo_seguro:<11}) : [ APLICADO AL COPAGO ]", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    3. Subtotal / Base Imponible      : {C_WHITE}S/ {subtotal:>8.2f}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    4. Impuesto General Ventas (18%)  : {C_WHITE}S/ {igv:>8.2f}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_GRAY}{'─' * 66}{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"    {BG_TOTAL} TOTAL A LIQUIDAR / PAGADO : S/ {total:>8.2f} {C_RESET}", ANCHO_TABLERO, C_GOLD),
+        borde_sep_doble(ANCHO_TABLERO, C_GOLD)
     ]
 
-    # Incorporar representación del código QR en consola
+    # Incorporar representación del código QR en consola alineado milimétricamente
     qr_filas = generar_qr_ascii(cita.codigo, total)
     for q in qr_filas:
-        lineas.append(f"{C_GOLD}║{C_RESET} {q:<86} {C_GOLD}║{C_RESET}")
+        lineas.append(fila_doble(f"  {q}", ANCHO_TABLERO, C_GOLD))
 
     lineas.extend([
-        f"{C_GOLD}╠════════════════════════════════════════════════════════════════════════════════════════╣{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_GRAY}Representación impresa del Comprobante Fiscal Digital. Autorizado por Resolución SUNAT.  {C_RESET}{C_GOLD}║{C_RESET}",
-        f"{C_GOLD}║{C_RESET}  {C_GRAY}Clínica de Ate Vitarte S.A.C. - Sistema Desarrollado en Python POO Limpio (UTP Lima).   {C_RESET}{C_GOLD}║{C_RESET}",
-        f"{C_GOLD}╚════════════════════════════════════════════════════════════════════════════════════════╝{C_RESET}"
+        borde_sep_doble(ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_GRAY}Representación impresa del Comprobante Fiscal Digital SUNAT.{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        fila_doble(f"  {C_GRAY}Clínica de Ate Vitarte S.A.C. - Sistema Desarrollado en Python.{C_RESET}", ANCHO_TABLERO, C_GOLD),
+        borde_inf_doble(ANCHO_TABLERO, C_GOLD)
     ])
 
     return "\n".join(lineas)
