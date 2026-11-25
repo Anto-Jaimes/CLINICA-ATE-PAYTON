@@ -17,6 +17,7 @@ CONTROLADOR DEL FLUJO DE TRABAJO CLÍNICO (WORKFLOW SECUENCIAL):
 """
 
 import os
+import json
 from datetime import datetime
 from modelos import (
     Persona, Medico, Paciente, Enfermero,
@@ -26,23 +27,11 @@ from modelos import (
 from facturacion import formatear_comprobante_consola, FacturadorClinico, calcular_liquidacion
 from formato_tablero import (
     C_RESET, C_BOLD, C_DIM, C_CYAN, C_GOLD, C_GREEN, C_MAGENTA, C_BLUE,
-    C_RED, C_WHITE, C_GRAY, ANCHO_TABLERO, fila_doble, borde_sup_doble,
-    borde_inf_doble, borde_sep_doble
+    C_RED, C_WHITE, C_GRAY, C_ORANGE, C_CORAL,
+    BG_HEADER, BG_FASE1, BG_FASE2, BG_FASE3, BG_FASE4, BG_FASE5, BG_FASE6,
+    BG_AUX, ANCHO_TABLERO, fila_doble, borde_sup_doble, borde_inf_doble,
+    borde_sep_doble, truncar_texto
 )
-
-C_ORANGE = "\033[38;5;208m"
-C_CORAL = "\033[38;5;209m"
-
-# Fondos cromáticos para badges y estados
-BG_HEADER = "\033[44;1;97m"
-BG_FASE1 = "\033[45;1;97m"
-BG_FASE2 = "\033[46;1;30m"
-BG_FASE3 = "\033[44;1;97m"
-BG_FASE4 = "\033[43;1;30m"
-BG_FASE5 = "\033[42;1;30m"
-BG_FASE6 = "\033[41;1;97m"
-BG_LOCKED = "\033[48;5;236;90m"
-BG_ACTIVE = "\033[43;1;30m"
 
 
 class GestorClinico:
@@ -51,7 +40,7 @@ class GestorClinico:
     Gestiona el flujo asistencial por fases bloqueantes: ninguna fase posterior
     puede ser ejecutada sin haber cumplido los requisitos clínicos previos.
     """
-    def __init__(self, precargar_datos=True):
+    def __init__(self, precargar_datos=True, ruta_datos=None):
         # 1. Colecciones en Memoria
         self.medicos = []
         self.pacientes = []
@@ -68,12 +57,26 @@ class GestorClinico:
 
         # 4. Estado del Flujo Asistencial por Fases
         self.citas_facturadas = set()  # Códigos de citas con boleta/factura emitida
+        self.fase6_ejecutada = False
+
+        # Ruta de persistencia JSON
+        if ruta_datos is None:
+            self.ruta_datos = os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos_clinica.json")
+        else:
+            self.ruta_datos = ruta_datos
 
         # Catálogo de personal médico base
         self._cargar_catalogo_profesionales()
 
-        if precargar_datos:
+        if self.ruta_datos and os.path.exists(self.ruta_datos):
+            if not self.cargar_datos():
+                if precargar_datos:
+                    self._precargar_flujo_asistencial_semilla()
+                    self.guardar_datos()
+        elif precargar_datos:
             self._precargar_flujo_asistencial_semilla()
+            if self.ruta_datos:
+                self.guardar_datos()
 
     def _cargar_catalogo_profesionales(self):
         """Carga el directorio permanente de médicos especialistas y enfermeros."""
@@ -221,6 +224,8 @@ class GestorClinico:
                 return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 5 and len(self.citas_facturadas) > 0:
                 return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
+            elif numero_fase == 6 and self.fase6_ejecutada:
+                return f"{C_GREEN}[ COMPLETADA ]{C_RESET}"
             elif numero_fase == 6 and len(self.citas_facturadas) > 0:
                 return f"{C_CYAN}[ DISPONIBLE ]{C_RESET}"
             return f"{C_GOLD}[ EN CURSO   ]{C_RESET}"
@@ -240,12 +245,12 @@ class GestorClinico:
             fases_completadas += 1
         if len(self.citas_facturadas) > 0:
             fases_completadas += 1
-        if len(self.citas_facturadas) > 0:
+        if self.fase6_ejecutada:
             fases_completadas += 1
         return int((fases_completadas / 6) * 100)
 
     # --------------------------------------------------------------------------
-    # OPERACIONES AUXILIARES DE COLECCIONES
+    # OPERACIONES AUXILIARES DE COLECCIONES Y PERSISTENCIA JSON
     # --------------------------------------------------------------------------
     def agregar_paciente(self, paciente: Paciente):
         self.pacientes.append(paciente)
@@ -261,6 +266,143 @@ class GestorClinico:
     def buscar_cita_por_codigo(self, codigo: str) -> CitaMedica:
         return self.indice_citas.get(str(codigo).strip().upper(), None)
 
+    def horario_medico_disponible(self, medico: Medico, fecha: str, hora: str, excluir_codigo: str = "") -> tuple:
+        """Verifica que la hora esté dentro del turno del médico y sin cruce de citas."""
+        inicio, fin = medico.horario_atencion
+        if not (inicio <= hora <= fin):
+            return (False, f"La hora {hora} está fuera del turno del Dr(a). {medico.nombre_completo} ({inicio} a {fin}).")
+        for c in self.citas:
+            if c.codigo != excluir_codigo and c.estado in ("PROGRAMADA", "EN_ESPERA"):
+                if c.medico.colegiatura == medico.colegiatura and c.fecha == fecha and c.hora == hora:
+                    return (False, f"Cruce de horario: el médico ya tiene la cita {c.codigo} el {fecha} a las {hora}.")
+        return (True, "Horario disponible.")
+
+    def guardar_datos(self):
+        """Persiste pacientes, citas y estado de facturación en JSON."""
+        if not self.ruta_datos:
+            return
+        data = {
+            "citas_facturadas": sorted(list(self.citas_facturadas)),
+            "fase6_ejecutada": self.fase6_ejecutada,
+            "pacientes": [
+                {
+                    "dni": p.dni,
+                    "nombres": p._nombres,
+                    "apellidos": p._apellidos,
+                    "telefono": p.telefono,
+                    "correo": p.correo,
+                    "edad": p.edad,
+                    "tipo_seguro": p.tipo_seguro,
+                    "alergias": list(p.alergias),
+                    "tipo_sangre": p.tipo_sangre,
+                    "signos_vitales": p.signos_vitales,
+                    "historial_diagnosticos": list(p.historial_diagnosticos)
+                }
+                for p in self.pacientes
+            ],
+            "citas": []
+        }
+        for c in self.citas:
+            item = {
+                "clase": type(c).__name__,
+                "codigo": c.codigo,
+                "paciente_dni": c.paciente.dni,
+                "medico_cmp": c.medico.colegiatura,
+                "fecha": c.fecha,
+                "hora": c.hora,
+                "motivo": c.motivo,
+                "creado_por": c.creado_por,
+                "estado": c.estado,
+                "descuento_promocional": c.descuento_promocional,
+                "receta_prescrita": list(c.receta_prescrita),
+                "indicaciones_medicas": c.indicaciones_medicas,
+                "bitacora_eventos": list(c.bitacora_eventos)
+            }
+            if isinstance(c, CitaEspecialidad):
+                item["requiere_instrumental"] = c.requiere_instrumental
+                item["procedimiento"] = c.procedimiento
+            elif isinstance(c, CitaEmergencia):
+                item["nivel_triaje"] = c.nivel_triaje
+            elif isinstance(c, CitaTelemedicina):
+                item["plataforma"] = c.plataforma
+            elif isinstance(c, CitaDomiciliaria):
+                item["direccion"] = c.direccion
+                item["distrito"] = c.distrito
+                item["requiere_ambulancia"] = c.requiere_ambulancia
+            elif isinstance(c, CitaLaboratorio):
+                item["tipo_examen"] = c.tipo_examen
+                item["horas_entrega"] = c.horas_entrega
+            data["citas"].append(item)
+
+        try:
+            with open(self.ruta_datos, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def cargar_datos(self) -> bool:
+        """Carga pacientes, citas y estado desde JSON."""
+        try:
+            with open(self.ruta_datos, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return False
+
+        self.pacientes.clear()
+        self.citas.clear()
+        self.indice_pacientes.clear()
+        self.indice_citas.clear()
+
+        for pd in data.get("pacientes", []):
+            p = Paciente(
+                pd["dni"], pd["nombres"], pd["apellidos"], pd["telefono"],
+                pd["edad"], pd["tipo_seguro"], tuple(pd.get("alergias", [])),
+                pd.get("tipo_sangre", "O+"), pd.get("correo", "")
+            )
+            p._signos_vitales = pd.get("signos_vitales", {})
+            p._historial_diagnosticos = pd.get("historial_diagnosticos", [])
+            self.agregar_paciente(p)
+
+        for cd in data.get("citas", []):
+            p = self.buscar_paciente_por_dni(cd["paciente_dni"])
+            m = self.indice_medicos.get(cd["medico_cmp"])
+            if not p or not m:
+                continue
+            cls = cd.get("clase", "CitaGeneral")
+            if cls == "CitaEspecialidad":
+                c = CitaEspecialidad(cd["codigo"], p, m, cd["fecha"], cd["hora"], cd["motivo"],
+                                     cd.get("requiere_instrumental", False), cd.get("procedimiento", "Evaluación"),
+                                     cd.get("creado_por", "VENTANILLA"))
+            elif cls == "CitaEmergencia":
+                c = CitaEmergencia(cd["codigo"], p, m, cd["fecha"], cd["hora"], cd["motivo"],
+                                   cd.get("nivel_triaje", 3), cd.get("creado_por", "TRIAJE_URGENCIAS"))
+            elif cls == "CitaTelemedicina":
+                c = CitaTelemedicina(cd["codigo"], p, m, cd["fecha"], cd["hora"], cd["motivo"],
+                                     cd.get("plataforma", "Google Meet Clínico"), cd.get("creado_por", "PORTAL_WEB"))
+            elif cls == "CitaDomiciliaria":
+                c = CitaDomiciliaria(cd["codigo"], p, m, cd["fecha"], cd["hora"], cd["motivo"],
+                                     cd.get("direccion", "Av. Principal 123"), cd.get("distrito", "Ate Vitarte"),
+                                     cd.get("requiere_ambulancia", False), cd.get("creado_por", "URGENCIAS_MOVIL"))
+            elif cls == "CitaLaboratorio":
+                c = CitaLaboratorio(cd["codigo"], p, m, cd["fecha"], cd["hora"], cd["motivo"],
+                                    cd.get("tipo_examen", "Hemograma Completo"), cd.get("horas_entrega", 12),
+                                    cd.get("creado_por", "LABORATORIO_CENTRAL"))
+            else:
+                c = CitaGeneral(cd["codigo"], p, m, cd["fecha"], cd["hora"], cd["motivo"],
+                                cd.get("creado_por", "VENTANILLA"))
+
+            c._estado = cd.get("estado", "PROGRAMADA")
+            c.aplicar_cupon_campania(cd.get("descuento_promocional", 0.0))
+            c._receta_prescrita = cd.get("receta_prescrita", [])
+            c._indicaciones_medicas = cd.get("indicaciones_medicas", "")
+            if cd.get("bitacora_eventos"):
+                c._bitacora_eventos = list(cd["bitacora_eventos"])
+            self.agregar_cita(c)
+
+        self.citas_facturadas = set(data.get("citas_facturadas", []))
+        self.fase6_ejecutada = bool(data.get("fase6_ejecutada", False))
+        return True
+
     def reiniciar_flujo_a_cero(self):
         """Limpia pacientes y citas para comenzar una demostración desde cero absoluto."""
         self.pacientes.clear()
@@ -268,7 +410,9 @@ class GestorClinico:
         self.indice_pacientes.clear()
         self.indice_citas.clear()
         self.citas_facturadas.clear()
-        print(f"\n  {C_GREEN}✔ [SISTEMA REINICIADO]{C_RESET} Se limpiaron los pacientes y citas.")
+        self.fase6_ejecutada = False
+        self.guardar_datos()
+        print(f"\n  {C_GREEN}✔ [SISTEMA REINICIADO]{C_RESET} Se limpiaron los pacientes, citas y persistencia.")
         print(f"  {C_GOLD}● Ahora todas las fases posteriores a la FASE 1 están rigurosamente bloqueadas.{C_RESET}")
 
     # --------------------------------------------------------------------------
@@ -290,12 +434,28 @@ class GestorClinico:
 
         nom = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Nombres:{C_RESET} ").strip()
         ape = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Apellidos completos:{C_RESET} ").strip()
+        if not nom or not ape:
+            print(f"  {C_RED}[ERROR]{C_RESET} Nombres y apellidos son obligatorios.")
+            return
+
         tel = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Teléfono / Celular:{C_RESET} ").strip()
+        if not (tel.isdigit() and len(tel) >= 6):
+            print(f"  {C_RED}[ERROR]{C_RESET} Teléfono no válido. Debe contener al menos 6 dígitos.")
+            return
+
+        correo = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Correo electrónico [opcional]:{C_RESET} ").strip()
+        if correo and "@" not in correo:
+            print(f"  {C_RED}[ALERTA]{C_RESET} Correo sin formato válido; se usará correo institucional por defecto.")
+            correo = ""
 
         try:
-            edad = int(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Edad:{C_RESET} ").strip())
+            edad = int(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Edad (0-120):{C_RESET} ").strip())
+            if not (0 <= edad <= 120):
+                print(f"  {C_RED}[ERROR]{C_RESET} Edad fuera de rango válido (0 a 120).")
+                return
         except ValueError:
-            edad = 25
+            print(f"  {C_RED}[ERROR]{C_RESET} Debe ingresar un número entero para la edad.")
+            return
 
         print(f"  {C_GRAY}Seguros admitidos: PARTICULAR | EPS | SIS | CONVENIO_UTP{C_RESET}")
         seg = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Tipo de seguro [defecto PARTICULAR]:{C_RESET} ").strip().upper()
@@ -309,12 +469,13 @@ class GestorClinico:
         ale_in = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Alergias conocidas (separadas por coma o vacío):{C_RESET} ").strip()
         alergias = tuple([a.strip() for a in ale_in.split(",") if a.strip()]) if ale_in else ()
 
-        nuevo_p = Paciente(dni, nom, ape, tel, edad, seg, alergias, sang)
+        nuevo_p = Paciente(dni, nom, ape, tel, edad, seg, alergias, sang, correo)
         self.agregar_paciente(nuevo_p)
+        self.guardar_datos()
 
-        print(f"\n  {C_GREEN}✔ [FASE 1 COMPLETADA CON ÉXITO]{C_RESET}")
+        print(f"\n  {C_GREEN}[OK] FASE 1 COMPLETADA CON ÉXITO{C_RESET}")
         print(f"  {C_CYAN}Paciente '{nuevo_p.nombre_completo}' registrado con éxito.{C_RESET}")
-        print(f"  {C_GOLD}🔓 ¡FASE 2 DESBLOQUEADA! Ahora puede realizar el Triaje Clínico de este paciente.{C_RESET}")
+        print(f"  {C_GOLD}[DESBLOQUEO] ¡FASE 2 DESBLOQUEADA! Ahora puede realizar el Triaje Clínico.{C_RESET}")
         print("\n" + nuevo_p.generar_carnet_digital())
 
     # --------------------------------------------------------------------------
@@ -342,37 +503,34 @@ class GestorClinico:
 
         try:
             pulso = int(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Frecuencia Cardíaca (lpm, ej. 72):{C_RESET} ").strip())
-        except ValueError:
-            pulso = 72
-
-        try:
             sat = int(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Saturación de Oxígeno SpO2 (%, ej. 98):{C_RESET} ").strip())
-        except ValueError:
-            sat = 98
-
-        try:
             temp = float(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Temperatura Corporal (°C, ej. 36.6):{C_RESET} ").strip())
-        except ValueError:
-            temp = 36.6
-
-        try:
             peso = float(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Peso Corporal (kg, ej. 70.0):{C_RESET} ").strip())
             talla = float(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Talla / Estatura (metros, ej. 1.70):{C_RESET} ").strip())
         except ValueError:
-            peso, talla = 70.0, 1.70
+            print(f"  {C_RED}[ERROR]{C_RESET} Los signos vitales deben ser valores numéricos válidos.")
+            return
+
+        if not (30 <= pulso <= 220) or not (50 <= sat <= 100) or not (30.0 <= temp <= 43.0):
+            print(f"  {C_RED}[ERROR]{C_RESET} Signos vitales fuera de rango fisiológico (Pulso 30-220, SpO2 50-100, Temp 30-43).")
+            return
+        if not (1.0 <= peso <= 300.0) or not (0.3 <= talla <= 2.5):
+            print(f"  {C_RED}[ERROR]{C_RESET} Peso (1-300 kg) o talla (0.30-2.50 m) fuera de rango válido.")
+            return
 
         paciente.registrar_signos_vitales(presion, pulso, sat, temp, peso, talla)
+        self.guardar_datos()
         sv = paciente.signos_vitales
 
         alerta_sat = f"{C_RED}[ALERTA: HIPOXIA CRÍTICA]{C_RESET}" if sat < 95 else f"{C_GREEN}[NORMAL]{C_RESET}"
         alerta_temp = f"{C_RED}[ALERTA: FIEBRE ALTA]{C_RESET}" if temp >= 38.0 else f"{C_GREEN}[EUTÉRMICO]{C_RESET}"
 
-        print(f"\n  {C_GREEN}✔ [FASE 2 COMPLETADA CON ÉXITO]{C_RESET}")
+        print(f"\n  {C_GREEN}[OK] FASE 2 COMPLETADA CON ÉXITO{C_RESET}")
         print(f"  {C_CYAN}Signos vitales registrados para: {C_WHITE}{paciente.nombre_completo}{C_RESET}")
         print(f"    • Presión : {C_WHITE}{presion} mmHg{C_RESET} | Pulso: {C_WHITE}{pulso} lpm{C_RESET} | SpO2: {C_WHITE}{sat}%{C_RESET} {alerta_sat}")
         print(f"    • Temp    : {C_WHITE}{temp:.1f} °C{C_RESET} {alerta_temp} | Peso: {peso:.1f} kg | Talla: {talla:.2f} m")
         print(f"    • IMC     : {C_GOLD}{sv['imc']:.2f}{C_RESET} -> {C_MAGENTA}{sv['diagnostico_nutricional']}{C_RESET}")
-        print(f"\n  {C_GOLD}🔓 ¡FASE 3 DESBLOQUEADA! El paciente ya puede recibir una Cita Médica.{C_RESET}")
+        print(f"\n  {C_GOLD}[DESBLOQUEO] ¡FASE 3 DESBLOQUEADA! El paciente ya puede recibir una Cita Médica.{C_RESET}")
 
     # --------------------------------------------------------------------------
     # FASE 3: ASIGNACIÓN Y AGENDAMIENTO DE CITA
@@ -406,7 +564,21 @@ class GestorClinico:
 
         fecha = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Fecha de atención (AAAA-MM-DD):{C_RESET} ").strip()
         hora = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Hora asignada (HH:MM):{C_RESET} ").strip()
+        try:
+            datetime.strptime(fecha, "%Y-%m-%d")
+            datetime.strptime(hora, "%H:%M")
+        except ValueError:
+            print(f"  {C_RED}[ERROR]{C_RESET} Formato de fecha u hora inválido. Use AAAA-MM-DD y HH:MM.")
+            return
+
+        disp, msg_disp = self.horario_medico_disponible(medico, fecha, hora)
+        if not disp:
+            print(f"  {C_RED}[AGENDA NO DISPONIBLE]{C_RESET} {msg_disp}")
+            return
+
         motivo = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Motivo de consulta / Síntomas:{C_RESET} ").strip()
+        if not motivo:
+            motivo = "Evaluación clínica general"
 
         print(f"\n  {C_GOLD}Modalidades Asistenciales Disponibles (Polimorfismo Clínico):{C_RESET}")
         print(f"    [1] Medicina General (Consulta ambulatoria preventiva)")
@@ -453,14 +625,17 @@ class GestorClinico:
             cita = CitaGeneral(cod_cita, paciente, medico, fecha, hora, motivo)
 
         self.agregar_cita(cita)
+        self.guardar_datos()
         tarifa_estimada = cita.calcular_tarifa_final()
 
-        print(f"\n  {C_GREEN}✔ [FASE 3 COMPLETADA CON ÉXITO]{C_RESET}")
+        print(f"\n  {C_GREEN}[OK] FASE 3 COMPLETADA CON ÉXITO{C_RESET}")
         print(f"  {C_CYAN}Cita agendada bajo el código oficial: {C_WHITE}{cita.codigo}{C_RESET}")
         print(f"    • Modalidad        : {C_GOLD}{cita.tipo_servicio()}{C_RESET}")
         print(f"    • Tarifa Liquidada : {C_GREEN}S/ {tarifa_estimada:.2f}{C_RESET} (Cobertura: {paciente.tipo_seguro})")
         print(f"    • Notificación SMS : {C_WHITE}{cita.enviar_sms(f'Cita confirmada para el {fecha} a las {hora}.')}{C_RESET}")
-        print(f"\n  {C_GOLD}🔓 ¡FASE 4 DESBLOQUEADA! El médico ya puede atender la consulta.{C_RESET}")
+        print(f"    • Notificación WA  : {C_GREEN}{cita.enviar_whatsapp(f'Cita {cita.codigo} - {fecha} {hora}.')}{C_RESET}")
+        print(f"    • Correo Enviado   : {C_GRAY}{cita.enviar_email('Confirmación de Cita', f'Su cita {cita.codigo} ha sido registrada.')}{C_RESET}")
+        print(f"\n  {C_GOLD}[DESBLOQUEO] ¡FASE 4 DESBLOQUEADA! El médico ya puede atender la consulta.{C_RESET}")
 
     # --------------------------------------------------------------------------
     # FASE 4: CONSULTORIO MÉDICO Y ACTO MÉDICO
@@ -510,10 +685,11 @@ class GestorClinico:
             cita.establecer_indicaciones(indic)
 
         cita.marcar_atendida()
+        self.guardar_datos()
 
-        print(f"\n  {C_GREEN}✔ [FASE 4 COMPLETADA CON ÉXITO]{C_RESET}")
+        print(f"\n  {C_GREEN}[OK] FASE 4 COMPLETADA CON ÉXITO{C_RESET}")
         print(f"  {C_CYAN}Atención médica finalizada. Cita {cita.codigo} marcada como {C_GREEN}ATENDIDA{C_RESET}.")
-        print(f"  {C_GOLD}🔓 ¡FASE 5 DESBLOQUEADA! El paciente ya puede pasar a Caja para Facturación.{C_RESET}")
+        print(f"  {C_GOLD}[DESBLOQUEO] ¡FASE 5 DESBLOQUEADA! El paciente ya puede pasar a Caja para Facturación.{C_RESET}")
         print("\n" + cita.generar_receta_medica())
 
     # --------------------------------------------------------------------------
@@ -536,6 +712,16 @@ class GestorClinico:
         if not cita or cita.estado != "ATENDIDA" or cita.codigo in self.citas_facturadas:
             print(f"  {C_RED}[ERROR]{C_RESET} Cita no válida para facturación o ya se encuentra liquidada.")
             return
+
+        cupon_in = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}¿Aplicar descuento/cupón de campaña (S/)? [0 si no aplica]:{C_RESET} ").strip()
+        if cupon_in:
+            try:
+                monto_desc = max(0.0, float(cupon_in))
+                if monto_desc > 0:
+                    cita.aplicar_cupon_campania(monto_desc)
+                    cita.registrar_evento_auditoria(f"Cupón promocional aplicado: -S/ {monto_desc:.2f}")
+            except ValueError:
+                pass
 
         print(f"  {C_GRAY}Tipo de Comprobante: [1] Boleta de Venta | [2] Factura Electrónica{C_RESET}")
         tipo_c = "FACTURA" if input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Seleccione tipo [defecto 1]:{C_RESET} ").strip() == "2" else "BOLETA"
@@ -575,21 +761,28 @@ class GestorClinico:
         elif forma_opc == "4":
             try:
                 p1 = float(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Parte en Efectivo (S/):{C_RESET} ").strip())
+                p2 = float(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Parte en Yape Digital (S/) [Enter para completar]:{C_RESET} ").strip() or max(0.0, total_cobrar - p1))
             except ValueError:
                 p1 = total_cobrar / 2
-            p2 = max(0.0, total_cobrar - p1)
-            print(f"  {C_GRAY}Saldo restante a cubrir con Yape: S/ {p2:.2f}{C_RESET}")
+                p2 = total_cobrar - p1
             resultado = facturador.liquidar_comprobante([("EFECTIVO", p1), ("YAPE_DIGITAL", p2)], cita)
 
         else:
             resultado = facturador.liquidar_comprobante(total_cobrar, cita)
 
-        self.citas_facturadas.add(cita.codigo)
+        if not facturador.ultimo_pago_aprobado:
+            print(f"\n  {C_RED}[PAGO NO COMPLETADO]{C_RESET} {resultado}")
+            print(f"  {C_GOLD}La cita {cita.codigo} permanece pendiente de pago en caja.{C_RESET}")
+            return
 
-        print(f"\n  {C_GREEN}✔ [FASE 5 COMPLETADA CON ÉXITO]{C_RESET}")
+        self.citas_facturadas.add(cita.codigo)
+        cita.registrar_evento_auditoria(f"Comprobante {tipo_c} liquidado y aprobado por SUNAT.")
+        self.guardar_datos()
+
+        print(f"\n  {C_GREEN}[OK] FASE 5 COMPLETADA CON ÉXITO{C_RESET}")
         print(f"  {C_CYAN}{resultado}{C_RESET}")
         print(f"  {C_GREEN}● Sincronización SUNAT:{C_RESET} [{C_GREEN}████████████████████{C_RESET}] CDR Aprobado y Firmado Digitalmente.")
-        print(f"  {C_GOLD}🔓 ¡FASE 6 DESBLOQUEADA! Acceso abierto al Tablero Gerencial y Auditoría.{C_RESET}")
+        print(f"  {C_GOLD}[DESBLOQUEO] ¡FASE 6 DESBLOQUEADA! Acceso abierto al Tablero Gerencial y Auditoría.{C_RESET}")
 
     # --------------------------------------------------------------------------
     # FASE 6: AUDITORÍA, REPORTE GERENCIAL Y CIERRE DE EXPEDIENTE
@@ -599,37 +792,107 @@ class GestorClinico:
         print(fila_doble(f"  {BG_FASE6} FASE 6 : AUDITORÍA INTEGRAL, TABLERO BI Y CIERRE {C_RESET}", ANCHO_TABLERO, C_CYAN))
         print(f"{borde_inf_doble(ANCHO_TABLERO, C_CYAN)}\n")
 
+        self.fase6_ejecutada = True
+        self.guardar_datos()
+
         total_recaudado = sum(calcular_liquidacion(c.calcular_tarifa_final())[2] for c in self.citas if c.codigo in self.citas_facturadas)
         total_pacientes = len(self.pacientes)
         total_citas = len(self.citas)
         atendidas = len([c for c in self.citas if c.estado == "ATENDIDA"])
 
-        print(f"\n  {C_GOLD}INDICADORES CLAVE DE RENDIMIENTO CLÍNICO (KPIS):{C_RESET}")
-        print(f"    • Pacientes Afiliados en Padrón      : {C_WHITE}{total_pacientes}{C_RESET}")
-        print(f"    • Citas Atendidas y Liquidadas       : {C_GREEN}{atendidas}{C_RESET} de {total_citas}")
-        print(f"    • Total Recaudado en Caja SUNAT      : {C_GREEN}S/ {total_recaudado:.2f}{C_RESET}")
-        print(f"    • Eficiencia del Flujo Asistencial   : {C_CYAN}{self.calcular_porcentaje_flujo()}%{C_RESET}")
+        print(borde_sup_doble(ANCHO_TABLERO, C_GOLD))
+        print(fila_doble(f"  {BG_HEADER} TABLERO BI GERENCIAL - INDICADORES CLÍNICA ATE VITARTE {C_RESET}", ANCHO_TABLERO, C_GOLD))
+        print(borde_sep_doble(ANCHO_TABLERO, C_GOLD))
+        print(fila_doble(f"  • Pacientes Afiliados en Padrón    : {C_WHITE}{total_pacientes}{C_RESET}", ANCHO_TABLERO, C_GOLD))
+        print(fila_doble(f"  • Citas Atendidas / Totales        : {C_GREEN}{atendidas}{C_RESET} de {total_citas} ({len(self.citas_facturadas)} facturadas)", ANCHO_TABLERO, C_GOLD))
+        print(fila_doble(f"  • Total Recaudado en Caja SUNAT    : {C_GREEN}S/ {total_recaudado:.2f}{C_RESET}", ANCHO_TABLERO, C_GOLD))
+        print(fila_doble(f"  • Eficiencia del Flujo Asistencial : {C_CYAN}{self.calcular_porcentaje_flujo()}%{C_RESET}", ANCHO_TABLERO, C_GOLD))
+        print(borde_sep_doble(ANCHO_TABLERO, C_GOLD))
+        print(fila_doble(f"  {C_CYAN}DISTRIBUCIÓN DE MODALIDADES (GRÁFICO DE BARRAS):{C_RESET}", ANCHO_TABLERO, C_GOLD))
 
-        # Gráfico de Barras ANSI de Citas por Modalidad
         conteo_mod = {}
         for c in self.citas:
             mod = c.tipo_servicio().split("(")[0].strip()
             conteo_mod[mod] = conteo_mod.get(mod, 0) + 1
 
-        print(f"\n  {C_CYAN}DISTRIBUCIÓN DE MODALIDADES ATENDIDAS (GRÁFICO DE BARRAS EN CONSOLA):{C_RESET}")
         for mod, cant in conteo_mod.items():
             pct = (cant / total_citas * 100) if total_citas else 0
             barras = int(pct / 5)
             grafico = f"{C_CYAN}{'█' * barras}{C_GRAY}{'░' * (20 - barras)}{C_RESET}"
-            print(f"    • {mod:<18}: {grafico} {C_WHITE}{pct:5.1f}%{C_RESET} ({cant} atenciones)")
+            print(fila_doble(f"  • {truncar_texto(mod, 18):<18}: {grafico} {C_WHITE}{pct:5.1f}%{C_RESET} ({cant})", ANCHO_TABLERO, C_GOLD))
+
+        print(borde_inf_doble(ANCHO_TABLERO, C_GOLD))
 
         # Exportación del Reporte Formal
-        ruta_reporte = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Reporte_Clinico_Semana16.txt")
+        ruta_reporte = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reporte_Clinico_Semana16.txt")
         self._escribir_reporte_formal_disco(ruta_reporte)
 
-        print(f"\n  {C_GREEN}✔ [FASE 6 COMPLETADA AL 100%]{C_RESET}")
+        print(f"\n  {C_GREEN}[OK] FASE 6 COMPLETADA AL 100%{C_RESET}")
         print(f"  {C_WHITE}Expediente asistencial y auditoría archivados con éxito en:{C_RESET}")
         print(f"  {C_CYAN}{os.path.abspath(ruta_reporte)}{C_RESET}")
+
+    def ejecutar_gestion_citas_aux(self):
+        """Permite reprogramar, cancelar o aplicar cupones a citas programadas."""
+        print(f"\n{borde_sup_doble(ANCHO_TABLERO, C_BLUE)}")
+        print(fila_doble(f"  {BG_AUX} GESTIÓN DE CITAS : REPROGRAMAR / CANCELAR / CUPÓN {C_RESET}", ANCHO_TABLERO, C_BLUE))
+        print(f"{borde_inf_doble(ANCHO_TABLERO, C_BLUE)}\n")
+
+        activas = [c for c in self.citas if c.estado in ("PROGRAMADA", "EN_ESPERA")]
+        if not activas:
+            print(f"  {C_GOLD}[INFO]{C_RESET} No hay citas programadas o en espera para gestionar.")
+            return
+
+        for c in activas:
+            print(f"    • [{c.codigo}] {c.fecha} {c.hora} | {c.paciente.nombre_completo:<20} | Dr. {c.medico.nombre_completo:<18} | S/ {c.calcular_tarifa_final():.2f}")
+
+        cod = input(f"\n  {C_GOLD}>>{C_RESET} {C_WHITE}Ingrese código de cita:{C_RESET} ").strip().upper()
+        cita = self.buscar_cita_por_codigo(cod)
+        if not cita or cita.estado not in ("PROGRAMADA", "EN_ESPERA"):
+            print(f"  {C_RED}[ERROR]{C_RESET} Cita no encontrada o ya no puede modificarse.")
+            return
+
+        print(f"\n  {C_CYAN}Acciones disponibles para {cita.codigo}:{C_RESET}")
+        print(f"    [1] Reprogramar fecha y hora (valida turno y cruces)")
+        print(f"    [2] Cancelar cita médica")
+        print(f"    [3] Aplicar cupón promocional de campaña")
+        acc = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Seleccione acción [1-3]:{C_RESET} ").strip()
+
+        if acc == "1":
+            nf = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Nueva fecha (AAAA-MM-DD):{C_RESET} ").strip()
+            nh = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Nueva hora (HH:MM):{C_RESET} ").strip()
+            try:
+                datetime.strptime(nf, "%Y-%m-%d")
+                datetime.strptime(nh, "%H:%M")
+            except ValueError:
+                print(f"  {C_RED}[ERROR]{C_RESET} Formato de fecha u hora inválido.")
+                return
+            disp, msg = self.horario_medico_disponible(cita.medico, nf, nh, excluir_codigo=cita.codigo)
+            if not disp:
+                print(f"  {C_RED}[AGENDA NO DISPONIBLE]{C_RESET} {msg}")
+                return
+            cita.reprogramar(nf, nh)
+            self.guardar_datos()
+            print(f"  {C_GREEN}[OK]{C_RESET} Cita {cita.codigo} reprogramada para {nf} a las {nh}.")
+
+        elif acc == "2":
+            mot = input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Motivo de cancelación:{C_RESET} ").strip()
+            cita.marcar_cancelada(mot if mot else "Cancelación solicitada por paciente")
+            self.guardar_datos()
+            print(f"  {C_GOLD}[CANCELADA]{C_RESET} Cita {cita.codigo} marcada como CANCELADA.")
+
+        elif acc == "3":
+            try:
+                desc = max(0.0, float(input(f"  {C_GOLD}>>{C_RESET} {C_WHITE}Monto de descuento (S/):{C_RESET} ").strip()))
+            except ValueError:
+                print(f"  {C_RED}[ERROR]{C_RESET} Monto inválido.")
+                return
+            cita.aplicar_cupon_campania(desc)
+            cita.registrar_evento_auditoria(f"Cupón aplicado en gestión: -S/ {desc:.2f}")
+            self.guardar_datos()
+            print(f"  {C_GREEN}[OK]{C_RESET} Nueva tarifa estimada: S/ {cita.calcular_tarifa_final():.2f}.")
+
+        else:
+            print(f"  {C_RED}[ERROR]{C_RESET} Acción no reconocida.")
 
     def _escribir_reporte_formal_disco(self, ruta_archivo: str):
         """Genera el reporte ejecutivo de cierre de expediente."""

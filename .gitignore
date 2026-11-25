@@ -13,3 +13,7 @@ venv/
 .vscode/
 .idea/
 *.swp
+
+# Datos y reportes generados en tiempo de ejecución
+datos_clinica.json
+Reporte_Clinico_*.txt

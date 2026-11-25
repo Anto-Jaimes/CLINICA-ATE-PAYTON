@@ -22,11 +22,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from formato_tablero import (
     C_RESET, C_CYAN, C_GOLD, C_GREEN, C_RED, C_WHITE, C_GRAY, C_BLUE,
-    ANCHO_TABLERO, fila_doble, borde_sup_doble, borde_inf_doble, borde_sep_doble
+    BG_HEADER, BG_TOTAL, ANCHO_TABLERO, fila_doble, borde_sup_doble,
+    borde_inf_doble, borde_sep_doble
 )
-
-BG_HEADER = "\033[44;1;97m"
-BG_TOTAL = "\033[42;1;30m"
 
 
 # ==============================================================================
@@ -146,8 +144,9 @@ class Medico(Persona):
     """Herencia Simple: Especialización de Persona para médicos tratantes."""
     def __init__(self, dni: str, nombres: str, apellidos: str, telefono: str,
                  colegiatura: str, especialidad: str, tarifa_base: float,
-                 horario_atencion: tuple = ("08:00", "14:00"), consultorio: str = "Piso 2 - Cons. 204"):
-        super(Medico, self).__init__(dni, nombres, apellidos, telefono)
+                 horario_atencion: tuple = ("08:00", "14:00"), consultorio: str = "Piso 2 - Cons. 204",
+                 correo: str = ""):
+        super(Medico, self).__init__(dni, nombres, apellidos, telefono, correo)
         self._colegiatura = str(colegiatura).strip().upper()
         self._especialidad = str(especialidad).strip()
         self._tarifa_base = float(tarifa_base)
@@ -184,8 +183,9 @@ class Medico(Persona):
 class Enfermero(Persona):
     """Herencia Simple: Personal de enfermería para triaje y asistencia domiciliaria."""
     def __init__(self, dni: str, nombres: str, apellidos: str, telefono: str,
-                 colegiatura_cep: str, area: str = "Triaje Hospitalario", turno: str = "Mañana"):
-        super(Enfermero, self).__init__(dni, nombres, apellidos, telefono)
+                 colegiatura_cep: str, area: str = "Triaje Hospitalario", turno: str = "Mañana",
+                 correo: str = ""):
+        super(Enfermero, self).__init__(dni, nombres, apellidos, telefono, correo)
         self._colegiatura_cep = str(colegiatura_cep).strip().upper()
         self._area = str(area).strip()
         self._turno = str(turno).strip()
@@ -210,8 +210,9 @@ class Enfermero(Persona):
 class Paciente(Persona):
     """Herencia Simple: Paciente afiliado al sistema con historial y signos vitales."""
     def __init__(self, dni: str, nombres: str, apellidos: str, telefono: str,
-                 edad: int, tipo_seguro: str, alergias: tuple = (), tipo_sangre: str = "O+"):
-        super(Paciente, self).__init__(dni, nombres, apellidos, telefono)
+                 edad: int, tipo_seguro: str, alergias: tuple = (), tipo_sangre: str = "O+",
+                 correo: str = ""):
+        super(Paciente, self).__init__(dni, nombres, apellidos, telefono, correo)
         self._edad = int(edad)
         self._tipo_seguro = str(tipo_seguro).upper().strip()  # PARTICULAR, EPS, SIS, CONVENIO_UTP
         self._alergias = tuple(alergias)                      # TUPLA inmutable
@@ -299,7 +300,7 @@ class Paciente(Persona):
             fila_doble(f"  {C_GOLD}└──────────────┘{C_RESET}   {C_WHITE}Alergias  :{C_RESET} {C_GRAY}{alergias_txt[:36]:<36}{C_RESET}", ANCHO_TABLERO, C_CYAN),
             fila_doble(f"  {C_WHITE}Signos / IMC  :{C_RESET}   {C_BLUE}{imc_txt[:50]:<50}{C_RESET}", ANCHO_TABLERO, C_CYAN),
             borde_sep_doble(ANCHO_TABLERO, C_CYAN),
-            fila_doble(f"  {C_GRAY}||| | ||||| || |||||| | ||||| ||| |||| | |||||| ||||| | ||| |||| | ||||{C_RESET}", ANCHO_TABLERO, C_CYAN),
+            fila_doble(f"  {C_GRAY}||| | ||||| || |||||| | ||||| ||| |||| | |||||| ||||| | ||| |||| | |||{C_RESET}", ANCHO_TABLERO, C_CYAN),
             fila_doble(f"  {C_GRAY}Credencial digital valida para atenciones ambulatorias y urgencias.{C_RESET}", ANCHO_TABLERO, C_CYAN),
             borde_inf_doble(ANCHO_TABLERO, C_CYAN)
         ]

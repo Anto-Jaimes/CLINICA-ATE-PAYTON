@@ -12,7 +12,7 @@ calculando el ancho visual real y descartando secuencias de escape ANSI.
 
 import re
 
-# Paleta cromática ANSI estándar
+# Paleta cromática ANSI estándar (centralizada para todo el sistema)
 C_RESET = "\033[0m"
 C_BOLD = "\033[1m"
 C_DIM = "\033[2m"
@@ -24,6 +24,22 @@ C_BLUE = "\033[1;94m"
 C_RED = "\033[1;91m"
 C_WHITE = "\033[1;97m"
 C_GRAY = "\033[90m"
+C_ORANGE = "\033[38;5;208m"
+C_CORAL = "\033[38;5;209m"
+
+# Fondos cromáticos de alto contraste para encabezados y badges
+BG_HEADER = "\033[44;1;97m"
+BG_ALERT = "\033[41;1;97m"
+BG_SUCCESS = "\033[42;1;30m"
+BG_ACTIVE = "\033[43;1;30m"
+BG_TOTAL = "\033[42;1;30m"
+BG_FASE1 = "\033[45;1;97m"
+BG_FASE2 = "\033[46;1;30m"
+BG_FASE3 = "\033[44;1;97m"
+BG_FASE4 = "\033[43;1;30m"
+BG_FASE5 = "\033[42;1;30m"
+BG_FASE6 = "\033[41;1;97m"
+BG_AUX = "\033[48;5;24;1;97m"
 
 # Ancho interior estándar para tableros (ancho total en consola: 78 columnas)
 ANCHO_TABLERO = 72
@@ -83,3 +99,22 @@ def borde_inf_simple(ancho: int = ANCHO_TABLERO, color: str = C_GOLD) -> str:
 def borde_sep_simple(ancho: int = ANCHO_TABLERO, color: str = C_GOLD) -> str:
     """Retorna un separador horizontal simple: ├──────────┤"""
     return f"  {color}├{'─' * (ancho + 2)}┤{C_RESET}"
+
+
+def caja_titulo(titulo: str, color_borde: str = C_CYAN, bg_badge: str = BG_HEADER, ancho: int = ANCHO_TABLERO) -> str:
+    """Renderiza una cabecera de sección en caja doble con badge cromático."""
+    return "\n".join([
+        "",
+        borde_sup_doble(ancho, color_borde),
+        fila_doble(f"  {bg_badge} {titulo} {C_RESET}", ancho, color_borde),
+        borde_inf_doble(ancho, color_borde),
+        ""
+    ])
+
+
+def truncar_texto(texto: str, max_len: int) -> str:
+    """Trunca un texto agregando '...' si excede max_len."""
+    texto = str(texto).strip()
+    if len(texto) <= max_len:
+        return texto
+    return texto[:max(0, max_len - 3)] + "..."

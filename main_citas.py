@@ -29,16 +29,13 @@ os.system("")
 
 from formato_tablero import (
     C_RESET, C_BOLD, C_DIM, C_CYAN, C_GOLD, C_GREEN, C_MAGENTA, C_BLUE,
-    C_RED, C_WHITE, C_GRAY, ANCHO_TABLERO, ancho_visible,
+    C_RED, C_WHITE, C_GRAY, C_ORANGE,
+    BG_HEADER, BG_ALERT, BG_SUCCESS, BG_ACTIVE,
+    ANCHO_TABLERO, ancho_visible,
     fila_doble, fila_simple, borde_sup_doble, borde_inf_doble, borde_sep_doble,
     borde_sup_simple, borde_inf_simple, borde_sep_simple
 )
 from gestor import GestorClinico
-
-BG_HEADER = "\033[44;1;97m"
-BG_ALERT = "\033[41;1;97m"
-BG_SUCCESS = "\033[42;1;30m"
-BG_ACTIVE = "\033[43;1;30m"
 
 
 def limpiar_pantalla():
@@ -66,8 +63,9 @@ def imprimir_barra_progreso_flujo(gestor):
     pct = gestor.calcular_porcentaje_flujo()
     barras_llenas = int(pct / 5)
     barras_vacias = 20 - barras_llenas
-    barra_grafica = f"{C_GREEN}{'█' * barras_llenas}{C_GRAY}{'░' * barras_vacias}{C_RESET}"
-    print(f"  {C_WHITE}PROGRESO DEL CICLO CLÍNICO:{C_RESET} [{barra_grafica}] {C_GOLD}{pct}% COMPLETADO{C_RESET}")
+    color_barra = C_RED if pct < 40 else (C_GOLD if pct < 85 else C_GREEN)
+    barra_grafica = f"{color_barra}{'█' * barras_llenas}{C_GRAY}{'░' * barras_vacias}{C_RESET}"
+    print(f"  {C_WHITE}PROGRESO DEL CICLO CLÍNICO:{C_RESET} [{barra_grafica}] {color_barra}{pct}% COMPLETADO{C_RESET}")
     print(f"  {C_GRAY}{'─' * (ANCHO_TABLERO + 2)}{C_RESET}")
 
 
@@ -147,6 +145,7 @@ def imprimir_menu_fases(gestor):
     print(fila_simple(f"  {C_WHITE}CONSULTAS Y GESTIÓN AUXILIAR:{C_RESET}", ANCHO_TABLERO, C_GOLD))
     print(fila_simple(f"    {C_CYAN}[ 7 ]{C_RESET} {C_WHITE}Directorio de Médicos Especialistas y Horarios{C_RESET}", ANCHO_TABLERO, C_GOLD))
     print(fila_simple(f"    {C_CYAN}[ 8 ]{C_RESET} {C_WHITE}Expediente Clínico Digital por DNI{C_RESET}", ANCHO_TABLERO, C_GOLD))
+    print(fila_simple(f"    {C_BLUE}[10 ]{C_RESET} {C_WHITE}Gestión de Citas{C_RESET} {C_GRAY}(Reprogramar, Cancelar, Cupón){C_RESET}", ANCHO_TABLERO, C_GOLD))
     print(fila_simple(f"    {C_GOLD}[ 9 ]{C_RESET} {C_WHITE}Reiniciar Flujo Asistencial a Cero{C_RESET} {C_GRAY}(Probar bloqueo paso a paso){C_RESET}", ANCHO_TABLERO, C_GOLD))
     print(fila_simple(f"    {C_RED}[ 0 ]{C_RESET} {C_WHITE}Cerrar Sesión del Sistema{C_RESET}", ANCHO_TABLERO, C_GOLD))
     print(borde_inf_simple(ANCHO_TABLERO, C_GOLD))
@@ -175,7 +174,7 @@ def ejecutar_consola():
         imprimir_banner_institucional()
         imprimir_menu_fases(gestor)
 
-        opcion = input(f"  {C_CYAN}➤ Ingrese una opción [0 - 9]:{C_RESET} ").strip()
+        opcion = input(f"  {C_CYAN}➤ Ingrese una opción [0 - 10]:{C_RESET} ").strip()
 
         if opcion == "1":
             # FASE 1: Siempre accesible
@@ -248,20 +247,25 @@ def ejecutar_consola():
             gestor.reiniciar_flujo_a_cero()
             pausar()
 
+        elif opcion == "10":
+            gestor.ejecutar_gestion_citas_aux()
+            pausar()
+
         elif opcion == "0":
             limpiar_pantalla()
             imprimir_banner_institucional()
-            print(f"""
-  {BG_SUCCESS}       SESIÓN ASISTENCIAL FINALIZADA CORRECTAMENTE       {C_RESET}
-
-  {C_GREEN}✔{C_RESET} {C_WHITE}Todas las transacciones asistenciales y comprobantes fueron procesados en memoria.{C_RESET}
-  {C_CYAN}✦{C_RESET} {C_GRAY}Sistema Hospitalario desarrollado para la Clínica de Ate Vitarte S.A.C.{C_RESET}
-  {C_GOLD}●{C_RESET} {C_GRAY}Líder de Proyecto: Julibeth Antonela Jaimes Daza • Clean Code Architecture.{C_RESET}\n
-""")
+            print(borde_sup_doble(ANCHO_TABLERO, C_GREEN))
+            print(fila_doble(f"  {BG_SUCCESS}       SESIÓN ASISTENCIAL FINALIZADA CORRECTAMENTE       {C_RESET}", ANCHO_TABLERO, C_GREEN))
+            print(borde_sep_doble(ANCHO_TABLERO, C_GREEN))
+            print(fila_doble(f"  {C_GREEN}[OK]{C_RESET} {C_WHITE}Datos guardados automáticamente en persistencia JSON.{C_RESET}", ANCHO_TABLERO, C_GREEN))
+            print(fila_doble(f"  {C_CYAN}[*]{C_RESET}  {C_GRAY}Sistema Hospitalario desarrollado para Clínica Ate Vitarte S.A.C.{C_RESET}", ANCHO_TABLERO, C_GREEN))
+            print(fila_doble(f"  {C_GOLD}[•]{C_RESET}  {C_GRAY}Líder: Julibeth Antonela Jaimes Daza • Clean Code Architecture.{C_RESET}", ANCHO_TABLERO, C_GREEN))
+            print(borde_inf_doble(ANCHO_TABLERO, C_GREEN))
+            print("")
             sys.exit(0)
 
         else:
-            print(f"\n  {C_RED}[ALERTA] Opción no válida.{C_RESET} Digite un número del 0 al 9.")
+            print(f"\n  {C_RED}[ALERTA] Opción no válida.{C_RESET} Digite un número del 0 al 10.")
             pausar()
 
 
